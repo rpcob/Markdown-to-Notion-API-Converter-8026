@@ -1,11 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/authService';
-import { supabaseService } from '../services/supabaseService';
 import supabase from '../lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 const AuthContext = createContext();
 
-// Export the useAuth hook directly from the context file
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -14,90 +12,67 @@ export const useAuth = () => {
   return context;
 };
 
-// Check if Supabase is properly configured
-const isSupabaseConfigured = () => {
-  return !(supabase.supabaseUrl.includes('<PROJECT-ID>') || 
-           supabase.supabaseKey.includes('<ANON_KEY>'));
-};
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isDemo, setIsDemo] = useState(false);
-  const [backendType, setBackendType] = useState(isSupabaseConfigured() ? 'supabase' : 'demo');
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // Check for mock user first (demo mode)
-        const mockUserJson = localStorage.getItem('mockUser');
-        if (mockUserJson) {
-          const mockUser = JSON.parse(mockUserJson);
-          setUser(mockUser);
-          setIsDemo(true);
-          setBackendType('demo');
-          setLoading(false);
-          return;
-        }
-
-        // Try Supabase first if configured
-        if (isSupabaseConfigured()) {
-          try {
-            // Get the session from Supabase
-            const { data: { session } } = await supabase.auth.getSession();
-            
-            if (session) {
-              // Get user profile
-              const userData = await supabaseService.getProfile();
-              setUser(userData.user);
-              setBackendType('supabase');
-              setIsDemo(false);
-              setLoading(false);
-              return;
-            }
-          } catch (error) {
-            console.error('Supabase auth error:', error);
-          }
-        }
-
-        // If not using Supabase, try Express backend
-        const token = localStorage.getItem('token');
-        if (token) {
-          try {
-            const userData = await authService.getProfile(token);
-            setUser(userData.user);
-            setBackendType('express');
-            setIsDemo(false);
-          } catch (error) {
-            console.error('Express auth error:', error);
-            localStorage.removeItem('token');
-          }
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-      } finally {
-        setLoading(false);
+    // Check active sessions and sets the user
+    const fetchInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        setUser({ ...session.user, ...profile });
       }
+      setLoading(false);
     };
 
-    initAuth();
+    fetchInitialSession();
+
+    // Listen for changes on auth state
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        setUser({ ...session.user, ...profile });
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const login = async (email, password) => {
     try {
-      if (backendType === 'supabase') {
-        const response = await supabaseService.login(email, password);
-        setUser(response.user);
-        setIsDemo(false);
-        return response;
-      } else {
-        const response = await authService.login(email, password);
-        localStorage.setItem('token', response.token);
-        setUser(response.user);
-        setIsDemo(false);
-        setBackendType('express');
-        return response;
-      }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      setUser({ ...data.user, ...profile });
+      return data;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -106,19 +81,31 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password) => {
     try {
-      if (backendType === 'supabase') {
-        const response = await supabaseService.register(name, email, password);
-        setUser(response.user);
-        setIsDemo(false);
-        return response;
-      } else {
-        const response = await authService.register(name, email, password);
-        localStorage.setItem('token', response.token);
-        setUser(response.user);
-        setIsDemo(false);
-        setBackendType('express');
-        return response;
-      }
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+
+      const apiKey = uuidv4();
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: data.user.id,
+            name,
+            email,
+            api_key: apiKey,
+          }
+        ])
+        .select()
+        .single();
+
+      if (profileError) throw profileError;
+
+      setUser({ ...data.user, ...profile });
+      return data;
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -126,55 +113,52 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    if (backendType === 'supabase') {
-      await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
     }
-    
-    localStorage.removeItem('token');
-    localStorage.removeItem('mockUser');
-    setUser(null);
-    setIsDemo(false);
-    
-    // Reset to default backend type
-    setBackendType(isSupabaseConfigured() ? 'supabase' : 'demo');
   };
 
   const regenerateApiKey = async () => {
-    if (isDemo) {
-      // For demo mode, just generate a random API key
-      const newApiKey = `demo-${Math.random().toString(36).substring(2, 15)}`;
-      const updatedUser = { ...user, apiKey: newApiKey };
-      localStorage.setItem('mockUser', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      return { apiKey: newApiKey };
-    } else if (backendType === 'supabase') {
-      const response = await supabaseService.regenerateApiKey();
-      setUser(prev => ({ ...prev, apiKey: response.apiKey }));
-      return response;
-    } else {
-      // For Express backend
-      const token = localStorage.getItem('token');
-      const response = await authService.regenerateApiKey(token);
-      setUser(prev => ({ ...prev, apiKey: response.apiKey }));
-      return response;
+    if (!user?.id) {
+      throw new Error('User not authenticated');
     }
-  };
 
-  const enableDemoMode = () => {
-    setBackendType('demo');
-    setIsDemo(true);
+    try {
+      const newApiKey = uuidv4();
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ api_key: newApiKey })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      // Update the user state with the new profile data
+      setUser(prev => ({ ...prev, ...data }));
+
+      return { success: true, apiKey: newApiKey };
+    } catch (error) {
+      console.error('Failed to regenerate API key:', error);
+      throw new Error('Failed to regenerate API key');
+    }
   };
 
   const value = {
     user,
     loading,
-    isDemo,
-    backendType,
     login,
     register,
     logout,
-    regenerateApiKey,
-    enableDemoMode
+    regenerateApiKey
   };
 
   return (

@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiMail, FiLock, FiLogIn, FiAlertTriangle } = FiIcons;
+const { FiMail, FiLock, FiLogIn } = FiIcons;
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -14,7 +14,7 @@ const LoginPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login, enableDemoMode } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -39,38 +39,6 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
-
-  // For demo purposes, let's add a mock login function
-  const handleMockLogin = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      const mockUser = {
-        id: 'user-123',
-        name: 'Demo User',
-        email: formData.email || 'demo@example.com',
-        apiKey: 'demo-api-key-12345',
-        createdAt: new Date().toISOString()
-      };
-      
-      // Store mock token and user data
-      localStorage.setItem('token', 'mock-jwt-token');
-      localStorage.setItem('mockUser', JSON.stringify(mockUser));
-      
-      // Enable demo mode in auth context
-      enableDemoMode();
-      
-      // Redirect to dashboard
-      navigate('/dashboard');
-      
-      setLoading(false);
-    }, 1000);
-  };
-
-  const isServerError = error.includes('server') || error.includes('failed') || 
-                        error.includes('CORS') || error.includes('Network');
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -102,28 +70,8 @@ const LoginPage = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10"
         >
-          {isServerError && (
-            <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <SafeIcon icon={FiAlertTriangle} className="h-5 w-5 text-yellow-400" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-yellow-700">
-                    <strong>Connection error.</strong> {error.includes('CORS') 
-                      ? 'A CORS error occurred when connecting to the server.' 
-                      : 'The backend server isn\'t running or can\'t be reached.'}
-                  </p>
-                  <p className="mt-2 text-sm text-yellow-700">
-                    You can continue with demo mode using the button below.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && !isServerError && (
+            {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                 {error}
               </div>
@@ -169,7 +117,7 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <div className="flex flex-col space-y-3">
+            <div>
               <button
                 type="submit"
                 disabled={loading}
@@ -184,16 +132,6 @@ const LoginPage = () => {
                   </>
                 )}
               </button>
-
-              {isServerError && (
-                <button
-                  onClick={handleMockLogin}
-                  disabled={loading}
-                  className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  Continue in Demo Mode
-                </button>
-              )}
             </div>
           </form>
         </motion.div>

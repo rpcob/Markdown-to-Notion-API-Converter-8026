@@ -12,20 +12,12 @@ router.post('/markdown-to-notion', authenticateApiKey, async (req, res) => {
     const { markdown } = req.body;
 
     if (!markdown || typeof markdown !== 'string') {
-      return res.status(400).json({ 
-        error: 'Markdown content is required and must be a string' 
-      });
-    }
-
-    if (markdown.length > 50000) {
-      return res.status(400).json({ 
-        error: 'Markdown content too large. Maximum 50,000 characters allowed.' 
-      });
+      return res.status(400).json({ error: 'Markdown content is required and must be a string' });
     }
 
     // Convert markdown to Notion format
     const notionBlocks = converter.convert(markdown);
-
+    
     res.json({
       success: true,
       data: {
@@ -39,9 +31,9 @@ router.post('/markdown-to-notion', authenticateApiKey, async (req, res) => {
     });
   } catch (error) {
     console.error('Conversion error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to convert markdown to Notion format',
-      details: error.message 
+      details: error.message
     });
   }
 });

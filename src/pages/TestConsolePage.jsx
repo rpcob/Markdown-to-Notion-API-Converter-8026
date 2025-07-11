@@ -2,26 +2,27 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { conversionService } from '../services/conversionService';
+import { API_CONFIG } from '../config/api';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiTerminal, FiPlay, FiCopy, FiCheck, FiAlertTriangle } = FiIcons;
+const { FiTerminal, FiPlay, FiCopy, FiCheck, FiKey, FiTag } = FiIcons;
 
 const TestConsolePage = () => {
-  const { user, isDemo, backendType } = useAuth();
-  const [markdown, setMarkdown] = useState(`# Sample Markdown
-
+  const { user } = useAuth();
+  const [apiKey, setApiKey] = useState(user?.api_key || '');
+  const [apiVersion, setApiVersion] = useState(API_CONFIG.CURRENT_VERSION);
+  const [markdown, setMarkdown] = useState(
+    `# Sample Markdown
 This is a **sample** markdown document with various elements:
 
 ## Features
-
 - Headings (H1-H6)
 - **Bold** and *italic* text
 - \`Inline code\`
 - Lists (bulleted and numbered)
 
 ### Code Block
-
 \`\`\`javascript
 function hello() {
   console.log("Hello, World!");
@@ -31,9 +32,8 @@ function hello() {
 > This is a blockquote
 
 ---
-
-That's all!`);
-  
+That's all!`
+  );
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,123 +45,27 @@ That's all!`);
       return;
     }
 
+    if (!apiKey.trim()) {
+      setError('Please enter an API key');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setResponse('');
 
     try {
-      if (isDemo) {
-        // In demo mode, generate a mock response
-        await mockConversion();
-      } else {
-        // In real mode, call the API with the correct backend type
-        const result = await conversionService.convertMarkdownToNotion(
-          markdown, 
-          user?.apiKey,
-          backendType
-        );
-        setResponse(JSON.stringify(result, null, 2));
-      }
+      const result = await conversionService.convertMarkdownToNotion(
+        markdown,
+        apiKey,
+        apiVersion
+      );
+      setResponse(JSON.stringify(result, null, 2));
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Mock conversion for demo mode
-  const mockConversion = () => {
-    return new Promise((resolve) => {
-      // Simulate API delay
-      setTimeout(() => {
-        // Generate a mock response based on the markdown
-        const mockResponse = {
-          success: true,
-          data: {
-            children: generateMockBlocks(markdown)
-          },
-          metadata: {
-            blockCount: countBlocks(markdown),
-            processedAt: new Date().toISOString(),
-            userId: user?.id || 'demo-user'
-          }
-        };
-        
-        setResponse(JSON.stringify(mockResponse, null, 2));
-        resolve();
-      }, 1000);
-    });
-  };
-
-  // Simple mock block generator
-  const generateMockBlocks = (markdown) => {
-    const blocks = [];
-    const lines = markdown.split('\n').filter(line => line.trim());
-    
-    for (const line of lines) {
-      if (line.startsWith('# ')) {
-        blocks.push({
-          object: 'block',
-          type: 'heading_1',
-          heading_1: {
-            rich_text: [{ type: 'text', text: { content: line.substring(2) } }]
-          }
-        });
-      } else if (line.startsWith('## ')) {
-        blocks.push({
-          object: 'block',
-          type: 'heading_2',
-          heading_2: {
-            rich_text: [{ type: 'text', text: { content: line.substring(3) } }]
-          }
-        });
-      } else if (line.startsWith('### ')) {
-        blocks.push({
-          object: 'block',
-          type: 'heading_3',
-          heading_3: {
-            rich_text: [{ type: 'text', text: { content: line.substring(4) } }]
-          }
-        });
-      } else if (line.startsWith('- ')) {
-        blocks.push({
-          object: 'block',
-          type: 'bulleted_list_item',
-          bulleted_list_item: {
-            rich_text: [{ type: 'text', text: { content: line.substring(2) } }]
-          }
-        });
-      } else if (line.startsWith('> ')) {
-        blocks.push({
-          object: 'block',
-          type: 'quote',
-          quote: {
-            rich_text: [{ type: 'text', text: { content: line.substring(2) } }]
-          }
-        });
-      } else if (line === '---') {
-        blocks.push({
-          object: 'block',
-          type: 'divider',
-          divider: {}
-        });
-      } else if (!blocks[blocks.length - 1] || blocks[blocks.length - 1].type !== 'paragraph') {
-        blocks.push({
-          object: 'block',
-          type: 'paragraph',
-          paragraph: {
-            rich_text: [{ type: 'text', text: { content: line } }]
-          }
-        });
-      }
-    }
-    
-    return blocks;
-  };
-
-  // Count blocks for metadata
-  const countBlocks = (markdown) => {
-    return markdown.split('\n').filter(line => line.trim()).length;
   };
 
   const copyToClipboard = async (text) => {
@@ -188,23 +92,39 @@ That's all!`);
               <h1 className="text-2xl font-bold text-gray-900">Test Console</h1>
             </div>
 
-            {isDemo && (
-              <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <SafeIcon icon={FiAlertTriangle} className="h-5 w-5 text-yellow-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-yellow-700">
-                      <strong>Demo Mode Active.</strong> You're using the application in demo mode.
-                    </p>
-                    <p className="mt-1 text-sm text-yellow-700">
-                      Conversions will be simulated and no actual API calls will be made.
-                    </p>
-                  </div>
-                </div>
+            {/* API Configuration Section */}
+            <div className="mb-6 grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <SafeIcon icon={FiKey} className="inline mr-2" />
+                  API Key
+                </label>
+                <input
+                  type="text"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Enter your API key"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <SafeIcon icon={FiTag} className="inline mr-2" />
+                  API Version
+                </label>
+                <select
+                  value={apiVersion}
+                  onChange={(e) => setApiVersion(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {API_CONFIG.SUPPORTED_VERSIONS.map(version => (
+                    <option key={version} value={version}>
+                      {version}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             <div className="grid lg:grid-cols-2 gap-6">
               {/* Input Section */}
@@ -220,16 +140,14 @@ That's all!`);
                     <span>{loading ? 'Converting...' : 'Convert'}</span>
                   </button>
                 </div>
-                
                 <textarea
                   value={markdown}
                   onChange={(e) => setMarkdown(e.target.value)}
                   placeholder="Enter your markdown content here..."
                   className="w-full h-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                 />
-                
                 <div className="mt-2 text-sm text-gray-500">
-                  {markdown.length} / 50,000 characters
+                  {markdown.length} characters
                 </div>
               </div>
 
@@ -247,7 +165,6 @@ That's all!`);
                     </button>
                   )}
                 </div>
-
                 <div className="bg-gray-900 text-gray-100 rounded-md p-4 h-96 overflow-y-auto">
                   {loading && (
                     <div className="flex items-center space-x-2 text-blue-400">
@@ -255,19 +172,16 @@ That's all!`);
                       <span>Converting markdown...</span>
                     </div>
                   )}
-                  
                   {error && (
                     <div className="text-red-400">
                       <strong>Error:</strong> {error}
                     </div>
                   )}
-                  
                   {response && (
                     <pre className="text-sm">
                       <code>{response}</code>
                     </pre>
                   )}
-                  
                   {!loading && !error && !response && (
                     <div className="text-gray-400 text-sm">
                       Click "Convert" to see the Notion JSON output here...
@@ -275,17 +189,6 @@ That's all!`);
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Tips */}
-            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-medium text-blue-900 mb-2">Tips</h3>
-              <ul className="text-blue-800 text-sm space-y-1">
-                <li>• Use the sample markdown above as a starting point</li>
-                <li>• The output JSON can be directly used with the Notion API</li>
-                <li>• Large content is automatically split into multiple blocks</li>
-                <li>• All common markdown elements are supported</li>
-              </ul>
             </div>
           </div>
         </motion.div>

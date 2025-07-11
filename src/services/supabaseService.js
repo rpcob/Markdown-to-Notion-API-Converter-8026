@@ -1,9 +1,13 @@
-import supabase from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import supabase from '../lib/supabase';
 
 export const supabaseService = {
   // Authentication services
   async register(name, email, password) {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+    
     try {
       // First register the user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -47,6 +51,10 @@ export const supabaseService = {
   },
   
   async login(email, password) {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+    
     try {
       // Sign in with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -82,6 +90,10 @@ export const supabaseService = {
   },
   
   async getProfile() {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+    
     try {
       // Get the current user
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -114,6 +126,10 @@ export const supabaseService = {
   },
   
   async regenerateApiKey() {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+    
     try {
       // Get the current user
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -141,6 +157,10 @@ export const supabaseService = {
   
   // Conversion service
   async convertMarkdownToNotion(markdown, apiKey) {
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+    
     try {
       // Validate the API key
       const { data: userData, error: userError } = await supabase

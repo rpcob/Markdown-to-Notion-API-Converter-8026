@@ -2,24 +2,30 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { authRoutes } from './routes/auth.js';
-import { conversionRoutes } from './routes/conversion.js';
-import { errorHandler } from './middleware/errorHandler.js';
+import { authRoutes } from './server/routes/auth.js';
+import { conversionRoutes } from './server/routes/conversion.js';
+import { errorHandler } from './server/middleware/errorHandler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
-app.use(helmet());
+// CORS configuration - allowing requests from the frontend
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? ['https://yourdomain.com'] : ['http://localhost:5173'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   credentials: true
+}));
+
+// Security middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 500, // increased from 100 to 500 requests per window
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
@@ -34,7 +40,10 @@ app.use('/api/convert', conversionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handling
@@ -47,4 +56,5 @@ app.use('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`CORS enabled for: http://localhost:5173, http://127.0.0.1:5173`);
 });
