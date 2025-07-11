@@ -1,6 +1,4 @@
-import supabase from '../lib/supabase';
-import { getApiUrl } from '../config/api';
-
+// Add this to the existing convertMarkdownToNotion function
 export const conversionService = {
   async convertMarkdownToNotion(markdown, apiKey, version) {
     try {
@@ -19,106 +17,18 @@ export const conversionService = {
         throw new Error('Invalid API key');
       }
 
-      // Use the generateMockBlocks function
-      const blocks = generateMockBlocks(markdown);
-
-      // Log the conversion
-      const { error: logError } = await supabase
-        .from('conversions')
-        .insert([
-          {
-            user_id: userData.id,
-            input_size: markdown.length,
-            block_count: blocks.length,
-            api_version: version
-          }
-        ]);
-
-      if (logError) {
-        console.error('Error logging conversion:', logError);
+      // Check rate limits
+      const rateLimitCheck = await checkRateLimit(userData.id, supabase);
+      if (!rateLimitCheck.allowed) {
+        throw new Error(rateLimitCheck.message);
       }
 
-      return {
-        success: true,
-        data: {
-          children: blocks
-        },
-        metadata: {
-          blockCount: blocks.length,
-          processedAt: new Date().toISOString(),
-          userId: userData.id,
-          version
-        }
-      };
+      // Rest of the existing conversion logic...
+      
     } catch (error) {
       console.error('Conversion error:', error);
       throw error;
     }
   }
+  // ... rest of the service methods
 };
-
-// Simple mock block generator for client-side conversion
-function generateMockBlocks(markdown) {
-  const blocks = [];
-  const lines = markdown.split('\n').filter(line => line.trim());
-
-  for (const line of lines) {
-    if (line.startsWith('# ')) {
-      blocks.push({
-        object: 'block',
-        type: 'heading_1',
-        heading_1: {
-          rich_text: [{ type: 'text', text: { content: line.substring(2) } }]
-        }
-      });
-    } else if (line.startsWith('## ')) {
-      blocks.push({
-        object: 'block',
-        type: 'heading_2',
-        heading_2: {
-          rich_text: [{ type: 'text', text: { content: line.substring(3) } }]
-        }
-      });
-    } else if (line.startsWith('### ')) {
-      blocks.push({
-        object: 'block',
-        type: 'heading_3',
-        heading_3: {
-          rich_text: [{ type: 'text', text: { content: line.substring(4) } }]
-        }
-      });
-    } else if (line.startsWith('- ')) {
-      blocks.push({
-        object: 'block',
-        type: 'bulleted_list_item',
-        bulleted_list_item: {
-          rich_text: [{ type: 'text', text: { content: line.substring(2) } }]
-        }
-      });
-    } else if (line.startsWith('> ')) {
-      blocks.push({
-        object: 'block',
-        type: 'quote',
-        quote: {
-          rich_text: [{ type: 'text', text: { content: line.substring(2) } }]
-        }
-      });
-    } else if (line === '---') {
-      blocks.push({
-        object: 'block',
-        type: 'divider',
-        divider: {}
-      });
-    } else if (!blocks[blocks.length - 1] || blocks[blocks.length - 1].type !== 'paragraph') {
-      blocks.push({
-        object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [{ type: 'text', text: { content: line } }]
-        }
-      });
-    }
-  }
-
-  return blocks;
-}

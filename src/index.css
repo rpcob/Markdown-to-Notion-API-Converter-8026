@@ -8,13 +8,45 @@
   box-sizing: border-box;
 }
 
+html {
+  height: -webkit-fill-available;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
+/* Mobile viewport bug fix */
 #root {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Responsive tables for mobile */
+@media (max-width: 640px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Code blocks for mobile */
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Better tap targets on mobile */
+button, a {
+  touch-action: manipulation;
+}
+
+/* Prevent text zoom on iOS Safari */
+input, textarea, select, button {
+  font-size: 16px;
 }
