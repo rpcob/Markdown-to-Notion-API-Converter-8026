@@ -12,7 +12,7 @@ import './App.css';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -20,40 +20,40 @@ function ProtectedRoute({ children }) {
       </div>
     );
   }
-
+  
   return user ? children : <Navigate to="/login" />;
+}
+
+function AppRoutes() {
+  return (
+    <Router>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/docs" element={<DocumentationPage />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/test-console" element={
+            <ProtectedRoute>
+              <TestConsolePage />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </div>
+    </Router>
+  );
 }
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50">
-          <Header />
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/docs" element={<DocumentationPage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/test-console"
-              element={
-                <ProtectedRoute>
-                  <TestConsolePage />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </div>
-      </Router>
+      <AppRoutes />
     </AuthProvider>
   );
 }
