@@ -22,34 +22,6 @@ const {
   FiMail,
 } = FiIcons;
 
-// Define rate limits
-const rateLimits = [
-  {
-    tier: 'Free',
-    requests: '10 per 15 minutes',
-    dailyLimit: '100 requests',
-    features: 'Basic conversion'
-  },
-  {
-    tier: 'Lite',
-    requests: '500 per 15 minutes',
-    dailyLimit: '5,000 requests',
-    features: 'Quick processing'
-  },
-  {
-    tier: 'Pro',
-    requests: '2,000 per 15 minutes',
-    dailyLimit: '25,000 requests',
-    features: 'Priority processing'
-  },
-  {
-    tier: 'Enterprise',
-    requests: 'Unlimited',
-    dailyLimit: 'Unlimited',
-    features: 'Custom endpoints'
-  }
-];
-
 const DocumentationPage = () => {
   const [selectedVersion, setSelectedVersion] = useState(API_CONFIG.CURRENT_VERSION);
   const [expandedSection, setExpandedSection] = useState('');
@@ -414,6 +386,27 @@ curl -X POST '${supabaseRpcUrl}/convert_notion_to_markdown' \\
       code: '500',
       name: 'Internal Server Error',
       description: 'Server processing error',
+    },
+  ];
+
+  const rateLimits = [
+    {
+      tier: 'Free',
+      requests: '500 per 15 minutes',
+      dailyLimit: '5,000 requests',
+      features: 'Basic conversion',
+    },
+    {
+      tier: 'Pro',
+      requests: '2,000 per 15 minutes',
+      dailyLimit: '25,000 requests',
+      features: 'Priority processing',
+    },
+    {
+      tier: 'Enterprise',
+      requests: 'Custom',
+      dailyLimit: 'Unlimited',
+      features: 'Custom endpoints',
     },
   ];
 
